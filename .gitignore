@@ -1,0 +1,32 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+.env
+.env.local
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+.ipynb_checkpoints/
+
+# Generated artifacts, all reproducible from the repository root:
+#   corpus + vector index  python examples/00_setup_corpus.py
+#   QLoRA adapter          python -m finetuning.train_qlora --output-dir data/models/risk_classifier
+#   memos                  written by the examples, e.g. examples/02_vendor_review.py
+data/docs/
+data/tables/
+data/chroma/
+data/models/
+data/output/
+
+.DS_Store
+.idea/
+.vscode/

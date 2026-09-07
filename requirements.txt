@@ -1,0 +1,40 @@
+# All dependencies for the project.
+#   pip install -r requirements.txt
+
+# --- LLM providers ---------------------------------------------------------
+anthropic>=0.40
+ollama>=0.3                 # only needed for the local provider
+
+# --- Retrieval -------------------------------------------------------------
+chromadb>=0.5
+sentence-transformers>=3.0
+langchain-text-splitters>=0.3
+
+# --- Agent orchestration ---------------------------------------------------
+langgraph>=0.2.40
+
+# --- Structured reasoning and data ----------------------------------------
+networkx>=3.2
+pandas>=2.1
+
+# --- Document handling -----------------------------------------------------
+pdfplumber>=0.11
+python-docx>=1.1
+fpdf2>=2.7
+
+# --- Configuration and output ---------------------------------------------
+pydantic>=2.7
+pydantic-settings>=2.3
+rich>=13.7
+
+# --- Fine-tuning (finetuning/ module; requires a CUDA GPU) ----------------
+torch>=2.3
+transformers>=4.44
+peft>=0.12
+datasets>=2.20
+accelerate>=0.33
+bitsandbytes>=0.43; platform_system != "Darwin"
+
+# --- Testing ---------------------------------------------------------------
+pytest>=8.2
+pytest-cov>=5.0
