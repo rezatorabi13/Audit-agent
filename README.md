@@ -1,5 +1,7 @@
 # Audit Agent
 
+![Audit Agent workflow](audit-agent-workflow-banner.png)
+
 A multi-agent system that reviews vendor risk on an audit engagement: it gathers
 evidence from contracts and ledgers, reasons over an entity graph, and drafts a
 risk memo — but only after a human approves the findings.
