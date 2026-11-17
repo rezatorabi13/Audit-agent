@@ -5,8 +5,9 @@
 A multi-agent system that reviews vendor risk on an audit engagement. It gathers
 evidence from contracts and ledgers, reasons over an entity graph, labels every
 transaction with a **Qwen2.5-3B-Instruct model fine-tuned with 4-bit QLoRA**, and
-drafts a risk memo with **Llama 3.2 running locally through Ollama**, but only
-after a human approves the findings.
+drafts a risk memo with **Llama 3.2 running locally through Ollama** (or
+**Claude** via the Anthropic API, switchable with one setting), but only after a
+human approves the findings.
 
 The interesting problem here isn't generation. It's **traceability**: every
 sentence in the final memo has to trace back to a document citation, a graph
@@ -16,7 +17,7 @@ most of the design below.
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![LangGraph](https://img.shields.io/badge/agents-LangGraph-1c3c3c.svg)](https://github.com/langchain-ai/langgraph)
-[![Llama 3.2](https://img.shields.io/badge/LLM-Llama%203.2%20(Ollama)-0467df.svg)](https://ollama.com/library/llama3.2)
+[![LLM: Llama 3.2 | Claude](https://img.shields.io/badge/LLM-Llama%203.2%20%7C%20Claude-0467df.svg)](#switching-the-llm-llama-default-or-anthropic)
 [![Qwen2.5 + QLoRA](https://img.shields.io/badge/fine--tuned-Qwen2.5--3B%20%2B%20QLoRA-7c3aed.svg)](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct)
 [![Code style: ruff](https://img.shields.io/badge/lint-ruff-261230.svg)](https://github.com/astral-sh/ruff)
 
