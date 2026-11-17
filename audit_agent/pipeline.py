@@ -81,16 +81,41 @@ def build_qa(settings: Settings | None = None) -> GroundedQA:
     )
 
 
+def build_classifier(settings: Settings | None = None) -> TransactionClassifier:
+    """Build the transaction classifier selected by ``AUDIT_CLASSIFIER``.
+
+    ``qlora`` loads the fine-tuned Qwen adapter from ``settings.qlora_adapter_dir``.
+    The adapter is checked for before any heavy import, so a missing adapter
+    fails immediately with the command that trains it.
+    """
+    settings = settings or get_settings()
+    if settings.classifier == "rule_based":
+        return RuleBasedClassifier()
+
+    if settings.classifier == "qlora":
+        from finetuning.classifier import LoRAClassifier, ensure_adapter_exists
+
+        ensure_adapter_exists(settings.qlora_adapter_dir)
+        return LoRAClassifier(
+            adapter_path=settings.qlora_adapter_dir,
+            base_model=settings.qlora_base_model,
+        )
+
+    raise ValueError(f"Unknown classifier: {settings.classifier}")
+
+
 def build_workflow(
     settings: Settings | None = None,
     classifier: TransactionClassifier | None = None,
 ) -> AuditWorkflow:
     """Assemble the full review workflow.
 
-    Pass ``classifier`` to substitute the fine-tuned adapter for the default
-    rule-based labeller.
+    The transaction classifier comes from ``AUDIT_CLASSIFIER`` (``rule_based``
+    by default, or ``qlora`` for the fine-tuned Qwen adapter). Passing
+    ``classifier`` explicitly overrides the setting.
     """
     settings = settings or get_settings()
+    classifier = classifier or build_classifier(settings)
     ledger = load_ledger(settings)
     entity_graph = build_entity_graph(settings)
 
@@ -106,6 +131,6 @@ def build_workflow(
         llm=get_provider(settings),
         ledger=ledger,
         client_name=settings.client_name,
-        classifier=classifier or RuleBasedClassifier(),
+        classifier=classifier,
     )
     return AuditWorkflow(deps)

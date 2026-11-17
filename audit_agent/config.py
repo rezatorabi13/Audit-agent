@@ -9,7 +9,8 @@ from typing import Literal
 from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-LLMProviderName = Literal["anthropic", "ollama"]
+LLMProviderName = Literal["ollama", "anthropic"]
+ClassifierName = Literal["rule_based", "qlora"]
 
 
 class Settings(BaseSettings):
@@ -18,6 +19,10 @@ class Settings(BaseSettings):
     Every field can be overridden with an ``AUDIT_``-prefixed environment
     variable, e.g. ``AUDIT_TOP_K=8``. The Anthropic key keeps its conventional
     unprefixed name so it interoperates with other tooling.
+
+    Defaults run fully locally: Llama 3.2 through Ollama for language tasks and
+    the rule-based transaction classifier. Set ``AUDIT_CLASSIFIER=qlora`` once
+    the fine-tuned Qwen adapter has been trained.
     """
 
     model_config = SettingsConfigDict(
@@ -28,12 +33,16 @@ class Settings(BaseSettings):
     )
 
     # --- LLM -------------------------------------------------------------
-    llm_provider: LLMProviderName = "anthropic"
+    llm_provider: LLMProviderName = "ollama"
+    ollama_model: str = "llama3.2:3b"
     anthropic_api_key: str | None = Field(default=None, validation_alias="ANTHROPIC_API_KEY")
     anthropic_model: str = "claude-sonnet-5"
-    ollama_model: str = "llama3.2:3b"
     max_tokens: int = 1024
     temperature: float = 0.0
+
+    # --- Transaction classifier ------------------------------------------
+    classifier: ClassifierName = "rule_based"
+    qlora_base_model: str = "Qwen/Qwen2.5-3B-Instruct"
 
     # --- Retrieval -------------------------------------------------------
     embedding_model: str = "all-MiniLM-L6-v2"
@@ -77,6 +86,20 @@ class Settings(BaseSettings):
     def models_dir(self) -> Path:
         """Fine-tuned adapters produced by the optional finetuning module."""
         return self.data_dir / "models"
+
+    @property
+    def qlora_output_dir(self) -> Path:
+        """Where ``finetuning.train_qlora`` writes a run (adapter + metrics)."""
+        return self.models_dir / "qwen_risk_classifier"
+
+    @property
+    def qlora_adapter_dir(self) -> Path:
+        """The trained LoRA adapter loaded by the ``qlora`` classifier.
+
+        Never committed to the repository: it is produced locally by running
+        ``python -m finetuning.train_qlora``.
+        """
+        return self.qlora_output_dir / "adapter"
 
     @property
     def ledger_path(self) -> Path:

@@ -3,8 +3,13 @@
 Demonstrates the approval gate: the graph pauses, a reviewer sends the work back
 with a comment, then approves the second pass.
 
+Uses the classifier selected by AUDIT_CLASSIFIER (rule-based by default). To
+label transactions with the fine-tuned Qwen adapter instead, train it once and
+set AUDIT_CLASSIFIER=qlora, or run examples/03_vendor_review_qlora.py.
+
 Prerequisites:
     python examples/00_setup_corpus.py
+    ollama pull llama3.2:3b               # default LLM; or set AUDIT_LLM_PROVIDER=anthropic
 
 Run:
     python examples/02_vendor_review.py
@@ -31,6 +36,7 @@ VENDOR = "Acme Industrial Supplies Ltd."
 def main() -> None:
     configure_logging()
     settings = get_settings()
+    print(f"LLM provider: {settings.llm_provider} | classifier: {settings.classifier}")
     workflow = build_workflow(settings)
 
     pending = workflow.start(VENDOR, "Assess payment and related-party risk for this vendor.")

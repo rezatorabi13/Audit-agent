@@ -2,14 +2,20 @@
 
 Examples are generated rather than drawn from client data, and the generator is
 seeded so a training run is reproducible.
+
+Every example is rendered with :func:`audit_agent.workflow.classifier.describe_transaction`,
+the same function the workflow uses at inference time. Training and serving
+therefore see identically formatted text, which is what lets a small adapter
+generalise from a few hundred examples.
 """
 
 from __future__ import annotations
 
 import random
 from dataclasses import dataclass
+from datetime import date, timedelta
 
-from audit_agent.workflow.classifier import CATEGORIES
+from audit_agent.workflow.classifier import CATEGORIES, describe_transaction
 
 VENDORS = (
     "Acme Industrial Supplies Ltd.",
@@ -21,14 +27,19 @@ VENDORS = (
     "Soylent Freight Corp.",
 )
 
-WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
-WEEKEND_DAYS = ("Saturday", "Sunday")
-RELATIONSHIPS = (
-    "a shared board member",
-    "the CFO's spouse",
-    "a director who also owns the vendor",
+MEMOS = (
+    "Packaging film",
+    "Warehousing services",
+    "Office supplies",
+    "Freight charges",
+    "Maintenance contract",
+    "Raw materials",
+    "IT support retainer",
 )
+
+DIRECTORS = ("Jane Whitfield", "Marcus Hale", "Priya Raman", "Tomas Ostrowski")
 ROUND_AMOUNTS = (10_000, 25_000, 50_000, 100_000)
+YEAR_START = date(2025, 1, 1)
 
 SYSTEM_PROMPT = (
     "You are an audit risk classifier. Classify the transaction into exactly one of: "
@@ -42,48 +53,61 @@ class LabelledTransaction:
     label: str
 
 
-def generate_examples(per_class: int = 20, seed: int = 0) -> list[LabelledTransaction]:
-    """Build a balanced, shuffled set of labelled examples."""
+def _random_date(rng: random.Random, weekend: bool) -> str:
+    while True:
+        day = YEAR_START + timedelta(days=rng.randint(0, 364))
+        if (day.weekday() >= 5) == weekend:
+            return day.isoformat()
+
+
+def _irregular_amount(rng: random.Random) -> float:
+    # Non-zero cents keep the amount from ever looking round.
+    return rng.randint(500, 19_500) + rng.randint(1, 99) / 100
+
+
+def generate_examples(per_class: int = 40, seed: int = 0) -> list[LabelledTransaction]:
+    """Build a balanced, shuffled set of labelled examples.
+
+    Label precedence matches the rule-based classifier: a related party
+    outranks a duplicate, which outranks unusual timing or amount.
+    """
     rng = random.Random(seed)
     examples: list[LabelledTransaction] = []
 
+    def add(label: str, **facts: object) -> None:
+        text = describe_transaction(
+            vendor=rng.choice(VENDORS),
+            memo=rng.choice(MEMOS),
+            **facts,  # type: ignore[arg-type]
+        )
+        examples.append(LabelledTransaction(text, label))
+
     for _ in range(per_class):
-        amount = rng.randint(500, 9500) + rng.random()
-        examples.append(
-            LabelledTransaction(
-                f"Invoice from {rng.choice(VENDORS)} for ${amount:,.2f}, issued on a "
-                f"{rng.choice(WEEKDAYS)}, standard recurring purchase.",
-                "Normal",
-            )
+        add("Normal", amount=_irregular_amount(rng), posted_on=_random_date(rng, weekend=False))
+
+    for _ in range(per_class):
+        add(
+            "Duplicate Payment Risk",
+            amount=_irregular_amount(rng),
+            posted_on=_random_date(rng, weekend=rng.random() < 0.2),
+            appears_twice=True,
         )
 
     for _ in range(per_class):
-        vendor, amount = rng.choice(VENDORS), rng.randint(1000, 20000)
-        number = rng.randint(1000, 9999)
-        examples.append(
-            LabelledTransaction(
-                f"Two invoices from {vendor}, both numbered {number}, both for "
-                f"${amount:,.2f}, same date - appears twice in the ledger.",
-                "Duplicate Payment Risk",
-            )
+        add(
+            "Related Party",
+            amount=rng.choice((_irregular_amount(rng), float(rng.choice(ROUND_AMOUNTS)))),
+            posted_on=_random_date(rng, weekend=rng.random() < 0.2),
+            shared_directors=(rng.choice(DIRECTORS),),
+            appears_twice=rng.random() < 0.2,
         )
 
     for _ in range(per_class):
-        examples.append(
-            LabelledTransaction(
-                f"Transaction with {rng.choice(VENDORS)}, where {rng.choice(RELATIONSHIPS)} "
-                f"links this vendor to the client's leadership.",
-                "Related Party",
-            )
-        )
-
-    for _ in range(per_class):
-        examples.append(
-            LabelledTransaction(
-                f"Invoice from {rng.choice(VENDORS)} for a round amount of "
-                f"${rng.choice(ROUND_AMOUNTS):,.2f}, issued on a {rng.choice(WEEKEND_DAYS)}.",
-                "Unusual Timing or Amount",
-            )
+        weekend, round_amount = rng.choice(((True, False), (False, True), (True, True)))
+        add(
+            "Unusual Timing or Amount",
+            amount=float(rng.choice(ROUND_AMOUNTS)) if round_amount else _irregular_amount(rng),
+            posted_on=_random_date(rng, weekend=weekend),
         )
 
     rng.shuffle(examples)

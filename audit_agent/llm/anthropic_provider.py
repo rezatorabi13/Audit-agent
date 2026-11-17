@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class AnthropicProvider:
-    """Hosted Claude backend. Default for the pipeline.
+    """Hosted Claude backend. Optional: select it with ``AUDIT_LLM_PROVIDER=anthropic``.
 
     Note: no sampling temperature is sent. Current Claude models reject the
     parameter, and the workflow wants deterministic-as-possible output anyway.
@@ -28,8 +28,8 @@ class AnthropicProvider:
     ) -> None:
         if not api_key:
             raise ValueError(
-                "ANTHROPIC_API_KEY is not set. Add it to .env, or run with "
-                "AUDIT_LLM_PROVIDER=ollama to use a local model."
+                "AUDIT_LLM_PROVIDER=anthropic but ANTHROPIC_API_KEY is not set. Add it "
+                "to .env, or unset AUDIT_LLM_PROVIDER to use the local Llama default."
             )
         self._client = Anthropic(api_key=api_key)
         self._model = model

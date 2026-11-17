@@ -1,12 +1,17 @@
 """Transaction risk classification, behind a swappable interface.
 
-The default implementation is rule-derived and needs no model. The optional
-fine-tuned adapter in ``finetuning/`` implements the same protocol, so it can
-be dropped into the workflow without touching any node.
+Two implementations share one protocol:
+
+* :class:`RuleBasedClassifier` (default) - deterministic, needs no model.
+* ``finetuning.classifier.LoRAClassifier`` - Qwen2.5-3B-Instruct with a QLoRA
+  adapter trained by ``python -m finetuning.train_qlora``.
+
+Select one with ``AUDIT_CLASSIFIER=rule_based|qlora``; no node changes.
 """
 
 from __future__ import annotations
 
+from datetime import date as Date
 from typing import Protocol, runtime_checkable
 
 CATEGORIES = (
@@ -62,3 +67,40 @@ class RuleBasedClassifier:
             if rule in self.RULE_TO_CATEGORY:
                 return self.RULE_TO_CATEGORY[rule]
         return "Normal"
+
+
+def describe_transaction(
+    *,
+    vendor: str,
+    amount: float,
+    posted_on: str,
+    memo: str = "",
+    shared_directors: tuple[str, ...] | list[str] = (),
+    appears_twice: bool = False,
+) -> str:
+    """Render one ledger entry as text for a model-based classifier.
+
+    A classifier only sees the string it is given. A single ledger row cannot
+    reveal a related party (that lives in the entity graph) or a duplicate
+    (that needs the rest of the ledger), so those facts are added explicitly,
+    phrased the way the fine-tuning examples phrase them.
+    """
+    try:
+        weekday = Date.fromisoformat(str(posted_on)[:10]).strftime("%A")
+        when = f"issued on a {weekday} ({posted_on})"
+    except ValueError:
+        when = f"posted on {posted_on}"
+
+    text = f"Invoice from {vendor} for ${amount:,.2f}, {when}"
+    if memo:
+        text += f", described as '{memo}'"
+    text += "."
+
+    if appears_twice:
+        text += " Another invoice from the same vendor for the same amount appears in the ledger."
+    if shared_directors:
+        text += (
+            f" A shared board member ({', '.join(shared_directors)}) links this vendor "
+            "to the client's leadership."
+        )
+    return text

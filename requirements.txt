@@ -1,9 +1,15 @@
-# All dependencies for the project.
+# All dependencies for the project, including QLoRA fine-tuning.
 #   pip install -r requirements.txt
+#
+# The extra index below serves CUDA builds of PyTorch, so Windows and Linux
+# machines with an NVIDIA GPU get a GPU-enabled torch (needed for QLoRA). On
+# machines without one, torch still installs and everything except fine-tuning
+# and the qlora classifier works.
+--extra-index-url https://download.pytorch.org/whl/cu128
 
 # --- LLM providers ---------------------------------------------------------
-anthropic>=0.40
-ollama>=0.3                 # only needed for the local provider
+ollama>=0.4                 # default: Llama 3.2 served locally by Ollama
+anthropic>=0.40             # optional: AUDIT_LLM_PROVIDER=anthropic
 
 # --- Retrieval -------------------------------------------------------------
 chromadb>=0.5
@@ -27,13 +33,14 @@ pydantic>=2.7
 pydantic-settings>=2.3
 rich>=13.7
 
-# --- Fine-tuning (finetuning/ module; requires a CUDA GPU) ----------------
+# --- QLoRA fine-tuning of Qwen2.5-3B-Instruct (finetuning/) ---------------
+# Training and the qlora classifier need a CUDA GPU with ~8 GB VRAM.
 torch>=2.3
 transformers>=4.44
 peft>=0.12
 datasets>=2.20
 accelerate>=0.33
-bitsandbytes>=0.43; platform_system != "Darwin"
+bitsandbytes>=0.45; platform_system != "Darwin"
 
 # --- Testing ---------------------------------------------------------------
 pytest>=8.2

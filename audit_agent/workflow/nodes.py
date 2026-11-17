@@ -19,7 +19,11 @@ from audit_agent.knowledge.ledger_rules import detect_anomalies
 from audit_agent.llm.base import LLMProvider
 from audit_agent.retrieval.hybrid import HybridRetriever
 from audit_agent.workflow import prompts
-from audit_agent.workflow.classifier import RuleBasedClassifier, TransactionClassifier
+from audit_agent.workflow.classifier import (
+    RuleBasedClassifier,
+    TransactionClassifier,
+    describe_transaction,
+)
 from audit_agent.workflow.state import AuditState
 
 logger = logging.getLogger(__name__)
@@ -79,7 +83,9 @@ class AuditNodes:
         for flag in detect_anomalies(self._deps.ledger, vendor=vendor):
             rules_by_transaction[flag.transaction_id].append(flag.rule)
 
-        is_related = bool(state.get("related_party", {}).get("is_related_party"))
+        related_party = state.get("related_party", {})
+        is_related = bool(related_party.get("is_related_party"))
+        shared_directors = tuple(related_party.get("shared_board_members", ()))
         classifier = self._deps.classifier
 
         labels: list[str] = []
@@ -89,8 +95,15 @@ class AuditNodes:
             if isinstance(classifier, RuleBasedClassifier):
                 label = classifier.classify_from_rules(rules, is_related)
             else:
-                description = (
-                    f"{row.description} for ${row.debit:,.2f} from {row.vendor} on {row.date}"
+                # Model-based classifiers (e.g. the QLoRA adapter) see only text,
+                # so graph and ledger-wide facts are written into the description.
+                description = describe_transaction(
+                    vendor=str(row.vendor),
+                    amount=float(row.debit or row.credit),
+                    posted_on=str(row.date),
+                    memo=str(row.description),
+                    shared_directors=shared_directors if is_related else (),
+                    appears_twice="duplicate_payment" in rules,
                 )
                 label = classifier.classify(description)
             labels.append(f"{transaction_id}: {label}")
